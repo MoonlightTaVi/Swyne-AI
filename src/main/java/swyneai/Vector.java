@@ -57,7 +57,7 @@ public class Vector {
         }
         return this.multiScalar(target) / (this.length() * target.length());
     }
-    public Vector add(Vector target) {
+    public synchronized Vector add(Vector target) {
         if (this.size() != target.size()) {
             return null;
         }
@@ -67,7 +67,7 @@ public class Vector {
         }
         return ret;
     }
-    public Vector normalized() {
+    public synchronized Vector normalized() {
         if (length() == 0) {
             return null;
         }

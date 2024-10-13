@@ -8,7 +8,7 @@ public class Token {
         this.vector = new Vector(modelSize);
         this.vector.setCoord(id, 1);
     }
-    public Vector getVector() {
+    public synchronized Vector getVector() {
         return vector;
     }
     public void setVector(Vector vector) {

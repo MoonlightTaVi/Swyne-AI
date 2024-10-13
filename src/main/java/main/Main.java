@@ -2,13 +2,11 @@ package main;
 
 import swyneai.Model;
 import swyneai.Token;
-import swyneai.Tools.*;
 import swyneai.Vector;
 
 import java.sql.Timestamp;
 import java.util.*;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 import static fbreader.Tools.detectCharset;
 import static fbreader.Tools.readText;
@@ -24,18 +22,18 @@ public class Main {
         String text = readText(path, charset);
         int count = 10000;
         markTime(String.format("Finished reading file. Reading %d part(s)...", count));
-        Model model = new Model(5000, 2);
+        Model model = new Model(5000);
         model.loadStopWords();
         model.feed(readToList(text, count));
-        model.filterByOccurrences();
+        model.filterByOccurrences(2);
         model.setUpTokens();
-        model.train(1, 0.5);
+        model.train(3, 2);
         String mostOften = Collections.max(model.getOccurrences().entrySet(), Map.Entry.comparingByValue()).getKey();
         System.out.printf("The word, which occurs the most often: \"%s\" (%d times).%n", mostOften, model.getOccurrences().get(mostOften));
         Vector mostOftenVector = model.getTokens().get(mostOften).getVector();
         Set<Token> relatedTokens = new HashSet<>(model.getTokens().entrySet()
                 .stream().filter(e -> !e.getKey().equals(mostOften))
-                .filter(e -> e.getValue().getVector().similarity(mostOftenVector) > 0.4)
+                .filter(e -> e.getValue().getVector().similarity(mostOftenVector) > 0.6)
                 .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue))
                 .values());
         System.out.println("The most related words:");

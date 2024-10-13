@@ -8,22 +8,23 @@ import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
-import static swyneai.Tools.adjustVector;
 
 public class Model {
     private Map<String, Integer> occurrences = new HashMap<>();
-    private Map<String, Token> tokens = new HashMap<>();
+    private final Map<String, Token> tokens = new HashMap<>();
     private final Set<String> stopWords = new HashSet<>();
     private final List<String[]> sentences = new ArrayList<>();
     private int stopWordsCount = 0;
     private int sentenceCount = 0;
     private int wordCount = 0;
     private int size;
-    private final int minOccurrences;
-    public Model(int size, int minOccurrences) {
+    public Model(int size) {
         this.size = size;
-        this.minOccurrences = minOccurrences;
     }
+    public List<String[]> getSentences() {
+        return sentences;
+    }
+
     public void loadStopWords() {
         try (Scanner scanner = new Scanner(new File("src/main/resources/stopwords-ru.txt"))) {
             while (scanner.hasNext()) {
@@ -54,12 +55,7 @@ public class Model {
                         stopWordsCount++;
                         continue;
                     }
-                    if (occurrences.containsKey(word)) {
-                        int prev = occurrences.get(word);
-                        occurrences.put(word, ++prev);
-                    } else {
-                        occurrences.put(word, 1);
-                    }
+                    occurrences.put(word, occurrences.getOrDefault(word, 0) + 1);
                     if (occurrences.size() >= this.size) {
                         Main.markTime(String.format("Reached maximum model size (%d) at %d paragraph!", this.size, i));
                         break;
@@ -78,7 +74,7 @@ public class Model {
         Main.markTime("Finished feeding!");
         System.out.printf("Unique words: %d.%nStop words: %d.%nAll words: %d.%nSentences: %d.%nParagraphs: %d.%n", occurrences.size(), stopWordsCount, wordCount, sentenceCount, feed.size());
     }
-    public void filterByOccurrences() {
+    public void filterByOccurrences(int minOccurrences) {
         occurrences = occurrences.entrySet().stream()
                 .filter(e -> e.getValue() >= minOccurrences)
                 .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
@@ -100,21 +96,32 @@ public class Model {
     public Map<String, Token> getTokens() {
         return tokens;
     }
-    public void train(int window, double adjustRate) {
+    public void train(int window, int distanceModifier) {
         Main.markTime("Training...");
         for (String[] sentence : sentences) {
-            for (int i = 0; i < sentence.length - window; i++) {
+            for (int i = 0; i < sentence.length; i++) {
                 if (!tokens.containsKey(sentence[i])) {
                     continue;
                 }
-                Vector target = tokens.get(sentence[i]).getVector();
-                for (int j = i + 1; j < Math.min(i + window + 1, sentence.length); j++) {
+                int start = Math.max(0, i - window);
+                int end = Math.min(sentence.length - 1, i + window);
+                for (int j = start; j <= end; j++) {
                     if (!tokens.containsKey(sentence[j])) {
                         continue;
                     }
+                    if (i == j) {
+                        continue;
+                    }
+                    Vector target = tokens.get(sentence[i]).getVector();
                     Vector original = tokens.get(sentence[j]).getVector();
-                    Vector newVector = adjustVector(original, target, 1 + adjustRate);
-                    tokens.get(sentence[j]).setVector(newVector);
+                    Vector newVectorA = original.add(target).normalized();
+                    Vector newVectorB = target.add(original).normalized();
+                    for (int k = 0; k < distanceModifier - 1 + Math.abs(j - i); k++) {
+                        newVectorA = newVectorA.add(original).normalized();
+                        newVectorB = newVectorB.add(target).normalized();
+                    }
+                    tokens.get(sentence[j]).setVector(newVectorA);
+                    tokens.get(sentence[i]).setVector(newVectorB);
                 }
             }
         }
