@@ -1,4 +1,4 @@
-package swyneai;
+package swyneai.deprecated;
 
 import java.util.Arrays;
 
